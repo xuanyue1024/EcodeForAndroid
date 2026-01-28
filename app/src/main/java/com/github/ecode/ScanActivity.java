@@ -171,7 +171,7 @@ public class ScanActivity extends AppCompatActivity {
     private void notifyScanned(String sceneId) {
         String baseUrl = PreferenceUtils.getServerUrl(this);
         String token = PreferenceUtils.getToken(this);
-        String url = baseUrl + "/user/scan/scanned?sceneId=" + sceneId;
+        String url = baseUrl + "/api/user/scan/scanned?sceneId=" + sceneId;
 
         OkHttpUtils.builder()
                 .url(url)
@@ -227,7 +227,7 @@ public class ScanActivity extends AppCompatActivity {
     private void confirmLogin(String sceneId, boolean isConfirm) {
         String baseUrl = PreferenceUtils.getServerUrl(this);
         String token = PreferenceUtils.getToken(this);
-        String url = baseUrl + "/user/scan/confirm";
+        String url = baseUrl + "/api/user/scan/confirm";
 
         OkHttpUtils.builder()
                 .url(url)
