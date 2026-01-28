@@ -69,14 +69,6 @@ public class CaptchaDialog extends Dialog {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                // Intercept API calls from local WebView
-                if (url.contains("/api/proxy/gen")) {
-                    return proxyRequest(request, "/api/open/captcha/gen");
-                } else if (url.contains("/api/proxy/check")) {
-                    return proxyRequest(request, "/api/open/captcha/check");
-                }
-                
                 return assetLoader.shouldInterceptRequest(request.getUrl());
             }
 
@@ -84,8 +76,9 @@ public class CaptchaDialog extends Dialog {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 // Initialize Captcha
-                // Pass empty string as baseUrl because we are now using relative proxy paths in index.html
-                webView.evaluateJavascript("initCaptcha('');", null);
+                // Pass base URL for direct connection
+                String baseUrl = PreferenceUtils.getServerUrl(getContext());
+                webView.evaluateJavascript("initCaptcha('" + baseUrl + "');", null);
             }
         });
 
