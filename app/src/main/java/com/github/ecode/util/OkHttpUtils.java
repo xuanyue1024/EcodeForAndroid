@@ -1,7 +1,6 @@
 package com.github.ecode.util;
 
 
-
 import com.alibaba.fastjson2.JSON;
 
 import okhttp3.*;
@@ -44,6 +43,11 @@ public class OkHttpUtils {
                             .sslSocketFactory(createSSLSocketFactory(trustManagers), (X509TrustManager) trustManagers[0])
                             .hostnameVerifier((hostName, session) -> true)
                             .retryOnConnectionFailure(true)
+                            .addInterceptor(chain -> {
+                                Request request = chain.request();
+                                Log.d(TAG, "Sending request to " + request.url());
+                                return chain.proceed(request);
+                            })
                             .build();
                     addHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36");
                 }
@@ -299,5 +303,17 @@ public class OkHttpUtils {
 
         void onFailure(Call call, String errorMsg);
 
+    }
+    
+    // Helper method to allow simple Builder pattern
+    public static class Builder {
+        private String url;
+        public Builder url(String url) {
+            this.url = url;
+            return this;
+        }
+        public OkHttpUtils get() {
+            return OkHttpUtils.builder().url(url).get();
+        }
     }
 }

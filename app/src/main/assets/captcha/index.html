@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captcha</title>
+    <!-- Load local JS which handles loading everything else -->
+    <script src="./load.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: rgba(0,0,0,0.5); }
+        /* Ensure the container is visible for the captcha to render into */
+        #captcha-box { background: white; padding: 20px; border-radius: 8px; min-width: 300px; min-height: 250px; }
+    </style>
+</head>
+<body>
+    <div id="captcha-box"></div>
+
+    <script>
+        function initCaptcha(baseUrl) {
+            // Default for standalone testing
+            if (!baseUrl) {
+                baseUrl = "http://192.168.0.117:5173";
+            }
+
+            // Remove trailing slash if present
+            if (baseUrl.endsWith('/')) {
+                baseUrl = baseUrl.slice(0, -1);
+            }
+
+            // Resource loading config (first argument to loadTAC)
+            var resourceConfig = {
+                url: "./tac/", 
+                scriptUrls: ["./tac/js/tac.min.js"],
+                cssUrls: ["./tac/css/tac.css"]
+            };
+
+            // Captcha functionality config (second argument to loadTAC)
+            // Correct field names based on working example
+            var captchaConfig = {
+                requestCaptchaDataUrl: baseUrl + "/api/open/captcha/gen",
+                validCaptchaUrl: baseUrl + "/api/open/captcha/check",
+                bindEl: "#captcha-box", // Must be a selector string
+                
+                // Callbacks
+                validSuccess: function(res, c, t) {
+                    console.log("Verify Success:", res);
+                    if (window.Android) window.Android.onVerify(JSON.stringify(res));
+                },
+                validFail: function(res, c, t) {
+                    console.error("Verify Fail:", res);
+                    t.reloadCaptcha();
+                },
+                checkOnReady: function() { return true; }
+            };
+            
+            // Optional style config (third argument)
+            var styleConfig = {};
+
+            if (window.loadTAC) {
+                // Correct call: loadTAC(resourceConfig, captchaConfig, styleConfig)
+                window.loadTAC(resourceConfig, captchaConfig, styleConfig)
+                    .then(function(tac) {
+                        console.log("TAC loaded", tac);
+                        tac.init();
+                    })
+                    .catch(function(err) {
+                        console.error("TAC load error", err);
+                        if (window.Android) window.Android.onError(err);
+                    });
+            } else {
+                console.error("loadTAC not found");
+            }
+        }
+
+        // Auto-init for standalone browser testing (if not in Android WebView)
+        if (!window.Android) {
+            console.log("Running in standalone browser mode");
+            // Wait a bit for load.min.js to define window.loadTAC
+            setTimeout(function() {
+                initCaptcha();
+            }, 100);
+        }
+    </script>
+</body>
+</html>
