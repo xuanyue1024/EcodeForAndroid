@@ -2,8 +2,8 @@ package com.github.ecode;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,6 +16,9 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.bumptech.glide.request.RequestOptions;
 import com.github.ecode.model.User;
 import com.github.ecode.util.OkHttpUtils;
 import com.github.ecode.util.PreferenceUtils;
@@ -28,17 +31,25 @@ import okhttp3.Call;
  */
 public class UserInfoActivity extends AppCompatActivity {
 
-    private TextView tvName;
+    private ImageView ivAvatar;
     private TextView tvUsername;
+    private TextView tvName;
+    private TextView tvId;
     private TextView tvRole;
-    private TextView tvScore;
+    private TextView tvStatus;
+    private TextView tvSex;
     private TextView tvEmail;
+    private TextView tvPhone;
+    private TextView tvAddress;
+    private TextView tvScore;
+    private TextView tvBirthDate;
+    private TextView tvCreateTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 确保 OkHttpUtils 初始化（虽然 MainActivity 已经初始化，但为了健壮性再次调用是安全的）
+        // 确保 OkHttpUtils 初始化
         OkHttpUtils.init(this);
 
         EdgeToEdge.enable(this);
@@ -49,33 +60,44 @@ public class UserInfoActivity extends AppCompatActivity {
             return insets;
         });
 
-        tvName = findViewById(R.id.tv_name);
-        tvUsername = findViewById(R.id.tv_username);
-        tvRole = findViewById(R.id.tv_role);
-        tvScore = findViewById(R.id.tv_score);
-        tvEmail = findViewById(R.id.tv_email);
+        initViews();
+        setupListeners();
+        loadUserInfo();
+    }
 
+    private void initViews() {
+        ivAvatar = findViewById(R.id.iv_avatar);
+        tvUsername = findViewById(R.id.tv_username);
+        tvName = findViewById(R.id.tv_name);
+        tvId = findViewById(R.id.tv_id);
+        tvRole = findViewById(R.id.tv_role);
+        tvStatus = findViewById(R.id.tv_status);
+        tvSex = findViewById(R.id.tv_sex);
+        tvEmail = findViewById(R.id.tv_email);
+        tvPhone = findViewById(R.id.tv_phone);
+        tvAddress = findViewById(R.id.tv_address);
+        tvScore = findViewById(R.id.tv_score);
+        tvBirthDate = findViewById(R.id.tv_birth_date);
+        tvCreateTime = findViewById(R.id.tv_create_time);
+    }
+
+    private void setupListeners() {
         Button btnScan = findViewById(R.id.btn_scan);
         Button btnLogout = findViewById(R.id.btn_logout);
         Button btnNightMode = findViewById(R.id.btn_night_mode);
 
-        // 扫码按钮点击事件
         btnScan.setOnClickListener(v -> {
             Intent intent = new Intent(this, ScanActivity.class);
             startActivity(intent);
         });
 
-        // 退出登录按钮点击事件
         btnLogout.setOnClickListener(v -> {
-            // 清除本地存储的 Token
             PreferenceUtils.clearToken(this);
-            // 跳转到登录页面，并清空任务栈
             Intent intent = new Intent(this, MainActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         });
 
-        // 夜间模式切换按钮点击事件
         btnNightMode.setOnClickListener(v -> {
             int currentMode = AppCompatDelegate.getDefaultNightMode();
             if (currentMode == AppCompatDelegate.MODE_NIGHT_YES) {
@@ -84,14 +106,8 @@ public class UserInfoActivity extends AppCompatActivity {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
             }
         });
-
-        // 加载用户信息
-        loadUserInfo();
     }
 
-    /**
-     * 从服务器加载用户信息
-     */
     private void loadUserInfo() {
         String baseUrl = PreferenceUtils.getServerUrl(this);
         String token = PreferenceUtils.getToken(this);
@@ -99,7 +115,6 @@ public class UserInfoActivity extends AppCompatActivity {
 
         OkHttpUtils.builder()
                 .url(url)
-                // 在请求头中携带 Token
                 .addHeader("token", token)
                 .get()
                 .async(new OkHttpUtils.ICallBack() {
@@ -108,12 +123,10 @@ public class UserInfoActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             try {
                                 JSONObject json = JSON.parseObject(data);
-                                // 状态码 200 表示成功
                                 if (json.getIntValue("code") == 200) {
                                     User user = json.getObject("data", User.class);
                                     updateUI(user);
                                 } else {
-                                    // 其他错误（401 已被 OkHttpUtils 拦截处理）
                                     Toast.makeText(UserInfoActivity.this, "获取信息失败: " + json.getString("msg"), Toast.LENGTH_SHORT).show();
                                 }
                             } catch (Exception e) {
@@ -129,17 +142,66 @@ public class UserInfoActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * 更新 UI 显示
-     *
-     * @param user 用户对象
-     */
     private void updateUI(User user) {
         if (user == null) return;
-        tvName.setText("昵称: " + (user.getName() == null ? "未设置" : user.getName()));
-        tvUsername.setText("用户名: " + user.getUsername());
-        tvRole.setText("角色: " + user.getRole());
+
+        // 加载头像
+        if (user.getProfilePicture() != null && !user.getProfilePicture().isEmpty()) {
+            Glide.with(this)
+                 .load(user.getProfilePicture())
+                 .apply(RequestOptions.bitmapTransform(new CircleCrop()))
+                 .placeholder(R.mipmap.ic_launcher)
+                 .error(R.mipmap.ic_launcher)
+                 .into(ivAvatar);
+        } else {
+            Glide.with(this)
+                 .load(R.mipmap.ic_launcher)
+                 .apply(RequestOptions.bitmapTransform(new CircleCrop()))
+                 .into(ivAvatar);
+        }
+
+        tvUsername.setText(user.getUsername());
+        tvName.setText(user.getName() != null ? user.getName() : "未设置昵称");
+        
+        tvId.setText("ID: " + user.getId());
+        tvRole.setText("角色: " + getRoleText(user.getRole()));
+        tvStatus.setText("状态: " + getStatusText(user.getStatus()));
+        tvSex.setText("性别: " + getSexText(user.getSex()));
+        
+        tvEmail.setText("邮箱: " + (user.getEmail() != null ? user.getEmail() : "未绑定"));
+        tvPhone.setText("手机: " + (user.getPhone() != null ? user.getPhone() : "未绑定"));
+        tvAddress.setText("地址: " + (user.getAddress() != null ? user.getAddress() : "未设置"));
+        
         tvScore.setText("积分: " + user.getScore());
-        tvEmail.setText("邮箱: " + (user.getEmail() == null ? "未绑定" : user.getEmail()));
+        tvBirthDate.setText("生日: " + (user.getBirthDate() != null ? user.getBirthDate() : "--"));
+        tvCreateTime.setText("注册时间: " + (user.getCreateTime() != null ? user.getCreateTime() : "--"));
+    }
+
+    private String getRoleText(String role) {
+        if (role == null) return "--";
+        switch (role) {
+            case "ADMIN": return "管理员";
+            case "TEACHER": return "教师";
+            case "STUDENT": return "学生";
+            default: return role;
+        }
+    }
+
+    private String getStatusText(String status) {
+        if (status == null) return "--";
+        switch (status) {
+            case "ENABLE": return "正常";
+            case "DISABLE": return "禁用";
+            default: return status;
+        }
+    }
+
+    private String getSexText(String sex) {
+        if (sex == null) return "--";
+        switch (sex) {
+            case "MALE": return "男";
+            case "FEMALE": return "女";
+            default: return sex;
+        }
     }
 }
