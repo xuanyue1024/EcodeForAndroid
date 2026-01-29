@@ -1,6 +1,7 @@
 package com.github.ecode;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -85,6 +86,14 @@ public class UserInfoActivity extends AppCompatActivity {
         Button btnScan = findViewById(R.id.btn_scan);
         Button btnLogout = findViewById(R.id.btn_logout);
         Button btnNightMode = findViewById(R.id.btn_night_mode);
+
+        // Update button text based on current night mode
+        int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (currentNightMode == Configuration.UI_MODE_NIGHT_YES) {
+            btnNightMode.setText("切换日间模式");
+        } else {
+            btnNightMode.setText("切换夜间模式");
+        }
 
         btnScan.setOnClickListener(v -> {
             Intent intent = new Intent(this, ScanActivity.class);
