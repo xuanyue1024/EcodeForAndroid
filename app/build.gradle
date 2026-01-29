@@ -26,6 +26,34 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64' // 指定要支持的 ABI
+            universalApk true // 是否生成包含所有 ABI 的通用 APK
+        }
+    }
+    // 自定义 APK 文件名
+    applicationVariants.configureEach { variant ->
+        variant.outputs.each { output ->
+            // 获取 ABI 名称
+            def abi = output.getFilter(com.android.build.OutputFile.ABI)
+
+            // 如果没有 ABI（比如 universalApk=true 时），设为空或 default
+            if (abi == null) {
+                abi = "universal"
+            }
+
+            def appName = "ecode"
+            def versionName = variant.versionName
+
+            // 构建文件名：ecode-版本-架构.apk
+            def newApkName = "${appName}-${versionName}-${abi}.apk"
+
+            output.outputFileName = newApkName
+        }
+    }
 }
 
 dependencies {
