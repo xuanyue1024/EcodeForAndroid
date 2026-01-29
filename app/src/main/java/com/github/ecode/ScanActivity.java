@@ -14,8 +14,10 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ExperimentalGetImage;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
@@ -120,6 +122,7 @@ public class ScanActivity extends AppCompatActivity {
     private class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
         private final BarcodeScanner scanner = BarcodeScanning.getClient();
 
+        @OptIn(markerClass = ExperimentalGetImage.class)
         @Override
         public void analyze(@NonNull ImageProxy imageProxy) {
             if (isProcessing) {

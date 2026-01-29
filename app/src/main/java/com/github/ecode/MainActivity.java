@@ -23,6 +23,9 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import okhttp3.Call;
 
+/**
+ * 主 Activity，处理用户登录逻辑
+ */
 public class MainActivity extends AppCompatActivity {
 
     private TextInputEditText etUsername;
@@ -31,6 +34,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 初始化 OkHttpUtils 上下文，确保 401 跳转能正常工作
+        OkHttpUtils.init(this);
+
+        // 检查是否存在有效的 Token，如果存在则直接跳转到 UserInfoActivity
+        String token = PreferenceUtils.getToken(this);
+        if (!TextUtils.isEmpty(token)) {
+            Intent intent = new Intent(this, UserInfoActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -39,25 +55,27 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Initialize Views
+        // 初始化视图组件
         etUsername = findViewById(R.id.et_username);
         etPassword = findViewById(R.id.et_password);
         Button btnLogin = findViewById(R.id.btn_login);
         Button btnServer = findViewById(R.id.btn_server_config);
 
-        // Server Config
+        // 服务器配置按钮点击事件
         btnServer.setOnClickListener(v -> ServerUrlDialog.show(this));
 
-        // Login Action
+        // 登录按钮点击事件
         btnLogin.setOnClickListener(v -> {
             String username = etUsername.getText().toString().trim();
             String password = etPassword.getText().toString().trim();
 
+            // 校验用户名和密码是否为空
             if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password)) {
                 Toast.makeText(this, "请输入用户名和密码", Toast.LENGTH_SHORT).show();
                 return;
             }
             
+            // 校验是否配置了服务器地址
             String serverUrl = PreferenceUtils.getServerUrl(this);
             if (TextUtils.isEmpty(serverUrl)) {
                 Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
@@ -65,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Show Captcha
+            // 弹出验证码对话框，验证成功后执行登录
             new CaptchaDialog(this, new CaptchaDialog.OnCaptchaListener() {
                 @Override
                 public void onSuccess(String token) {
@@ -78,12 +96,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).show();
         });
-        
-        // Check if token exists and jump? 
-        // Develop.md says "preview version, so show user info after login". 
-        // Maybe auto-login? Let's keep it manual for now as per "Login Page" requirement.
     }
 
+    /**
+     * 执行登录请求
+     *
+     * @param username     用户名
+     * @param password     密码
+     * @param captchaToken 验证码 Token
+     */
     private void performLogin(String username, String password, String captchaToken) {
         String baseUrl = PreferenceUtils.getServerUrl(this);
         String url = baseUrl + "/api/user/login";
@@ -93,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
                 .addHeader("captcha-token", captchaToken)
                 .addParam("loginType", "passwd")
                 .addParam("username", username)
+                // 密码使用 MD5 加密传输
                 .addParam("password", MD5Utils.encrypt(password))
                 .post(true)
                 .async(new OkHttpUtils.ICallBack() {
@@ -101,11 +123,14 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             try {
                                 JSONObject json = JSON.parseObject(data);
+                                // 状态码 200 表示成功
                                 if (json.getIntValue("code") == 200) {
                                     String token = json.getJSONObject("data").getString("token");
+                                    // 持久化存储 Token
                                     PreferenceUtils.saveToken(MainActivity.this, token);
                                     Toast.makeText(MainActivity.this, "登录成功", Toast.LENGTH_SHORT).show();
                                     
+                                    // 跳转到 UserInfoActivity
                                     Intent intent = new Intent(MainActivity.this, UserInfoActivity.class);
                                     startActivity(intent);
                                     finish();

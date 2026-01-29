@@ -22,6 +22,10 @@ import com.github.ecode.util.PreferenceUtils;
 
 import okhttp3.Call;
 
+/**
+ * 用户信息 Activity
+ * 展示用户详情，提供退出登录、扫码等功能
+ */
 public class UserInfoActivity extends AppCompatActivity {
 
     private TextView tvName;
@@ -33,6 +37,10 @@ public class UserInfoActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 确保 OkHttpUtils 初始化（虽然 MainActivity 已经初始化，但为了健壮性再次调用是安全的）
+        OkHttpUtils.init(this);
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_user_info);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -51,18 +59,23 @@ public class UserInfoActivity extends AppCompatActivity {
         Button btnLogout = findViewById(R.id.btn_logout);
         Button btnNightMode = findViewById(R.id.btn_night_mode);
 
+        // 扫码按钮点击事件
         btnScan.setOnClickListener(v -> {
             Intent intent = new Intent(this, ScanActivity.class);
             startActivity(intent);
         });
 
+        // 退出登录按钮点击事件
         btnLogout.setOnClickListener(v -> {
+            // 清除本地存储的 Token
             PreferenceUtils.clearToken(this);
+            // 跳转到登录页面，并清空任务栈
             Intent intent = new Intent(this, MainActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         });
 
+        // 夜间模式切换按钮点击事件
         btnNightMode.setOnClickListener(v -> {
             int currentMode = AppCompatDelegate.getDefaultNightMode();
             if (currentMode == AppCompatDelegate.MODE_NIGHT_YES) {
@@ -72,9 +85,13 @@ public class UserInfoActivity extends AppCompatActivity {
             }
         });
 
+        // 加载用户信息
         loadUserInfo();
     }
 
+    /**
+     * 从服务器加载用户信息
+     */
     private void loadUserInfo() {
         String baseUrl = PreferenceUtils.getServerUrl(this);
         String token = PreferenceUtils.getToken(this);
@@ -82,6 +99,7 @@ public class UserInfoActivity extends AppCompatActivity {
 
         OkHttpUtils.builder()
                 .url(url)
+                // 在请求头中携带 Token
                 .addHeader("token", token)
                 .get()
                 .async(new OkHttpUtils.ICallBack() {
@@ -90,10 +108,12 @@ public class UserInfoActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             try {
                                 JSONObject json = JSON.parseObject(data);
+                                // 状态码 200 表示成功
                                 if (json.getIntValue("code") == 200) {
                                     User user = json.getObject("data", User.class);
                                     updateUI(user);
                                 } else {
+                                    // 其他错误（401 已被 OkHttpUtils 拦截处理）
                                     Toast.makeText(UserInfoActivity.this, "获取信息失败: " + json.getString("msg"), Toast.LENGTH_SHORT).show();
                                 }
                             } catch (Exception e) {
@@ -109,6 +129,11 @@ public class UserInfoActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * 更新 UI 显示
+     *
+     * @param user 用户对象
+     */
     private void updateUI(User user) {
         if (user == null) return;
         tvName.setText("昵称: " + (user.getName() == null ? "未设置" : user.getName()));
