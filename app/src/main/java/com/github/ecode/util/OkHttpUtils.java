@@ -101,6 +101,9 @@ public class OkHttpUtils {
             
             // 使用 Handler 确保在主线程执行 UI 操作（如 Toast）或启动 Activity
             new Handler(Looper.getMainLooper()).post(() -> {
+                // 弹出登录失效提示
+                android.widget.Toast.makeText(globalContext, "登录失效，请重新登录", android.widget.Toast.LENGTH_SHORT).show();
+                
                 // 跳转到 MainActivity，并清空任务栈，防止用户返回到旧页面
                 Intent intent = new Intent(globalContext, MainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -304,7 +307,11 @@ public class OkHttpUtils {
                     }
                 } else {
                     // 非 200-299 响应（包括 401，虽然 401 已被拦截器处理，但这里仍会回调）
-                    callBack.onFailure(call, "HTTP Error: " + response.code());
+                    // 对于 401，拦截器已经处理了跳转逻辑，这里可以选择不回调 onFailure，或者回调特定的错误信息
+                    // 如果是 401，拦截器已经弹出了 toast 并跳转，这里就不再回调 onFailure 避免重复弹窗 "HTTP Error: 401"
+                    if (response.code() != 401) {
+                        callBack.onFailure(call, "HTTP Error: " + response.code());
+                    }
                 }
             }
         });
