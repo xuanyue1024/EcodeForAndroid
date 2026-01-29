@@ -24,6 +24,9 @@
             android:name=".ScanActivity"
             android:exported="false" />
         <activity
+            android:name=".ScanConfirmActivity"
+            android:exported="false" />
+        <activity
             android:name=".UserInfoActivity"
             android:exported="false" />
         <activity

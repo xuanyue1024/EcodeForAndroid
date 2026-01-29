@@ -1,6 +1,7 @@
 package com.github.ecode;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
@@ -85,7 +86,7 @@ public class ScanActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
-        ListenableFuture<ProcessCameraProvider>cameraProviderFuture = ProcessCameraProvider.getInstance(this);
+        ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
 
         cameraProviderFuture.addListener(() -> {
             try {
@@ -187,14 +188,23 @@ public class ScanActivity extends AppCompatActivity {
                             try {
                                 JSONObject json = JSON.parseObject(data);
                                 if (json.getIntValue("code") == 200) {
-                                    showConfirmDialog(sceneId);
+                                    String ip = "";
+                                    JSONObject dataObj = json.getJSONObject("data");
+                                    if (dataObj != null) {
+                                        ip = dataObj.getString("ip");
+                                    }
+                                    
+                                    Intent intent = new Intent(ScanActivity.this, ScanConfirmActivity.class);
+                                    intent.putExtra("sceneId", sceneId);
+                                    intent.putExtra("ip", ip);
+                                    startActivity(intent);
+                                    finish();
                                 } else {
-                                    Toast.makeText(ScanActivity.this, "扫码处理失败: " + json.getString("msg"), Toast.LENGTH_SHORT).show();
-                                    isProcessing = false; // Reset flag to allow rescanning
+                                    // 扫描失败，显示对话框
+                                    showErrorDialog("无效的二维码或扫码失败: " + json.getString("msg"));
                                 }
                             } catch (Exception e) {
-                                Toast.makeText(ScanActivity.this, "解析错误", Toast.LENGTH_SHORT).show();
-                                finish();
+                                showErrorDialog("解析结果失败");
                             }
                         });
                     }
@@ -202,63 +212,22 @@ public class ScanActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(Call call, String errorMsg) {
                         runOnUiThread(() -> {
-                            Toast.makeText(ScanActivity.this, "网络错误", Toast.LENGTH_SHORT).show();
-                            isProcessing = false; // Reset flag
+                            showErrorDialog("网络请求失败: " + errorMsg);
                         });
                     }
                 });
     }
 
-    private void showConfirmDialog(String sceneId) {
+    private void showErrorDialog(String message) {
+        if (isFinishing()) return;
         new MaterialAlertDialogBuilder(this)
-                .setTitle("确认登录")
-                .setMessage("是否确认在电脑端登录？")
-                .setPositiveButton("确认", (dialog, which) -> confirmLogin(sceneId, true))
-                .setNegativeButton("取消", (dialog, which) -> {
-                    confirmLogin(sceneId, false);
-                    finish(); // Or isProcessing = false if we want to allow continuous scanning
+                .setTitle("提示")
+                .setMessage(message)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    isProcessing = false; // 只有用户点击确定后才恢复扫描
                 })
-                .setOnDismissListener(dialog -> {
-                    // Handle dismiss if needed (e.g. back button)
-                    if (!isFinishing()) {
-                         finish(); 
-                    }
-                })
+                .setCancelable(false) // 禁止点击外部取消，强制用户确认
                 .show();
-    }
-
-    private void confirmLogin(String sceneId, boolean isConfirm) {
-        String baseUrl = PreferenceUtils.getServerUrl(this);
-        String token = PreferenceUtils.getToken(this);
-        String url = baseUrl + "/api/user/scan/confirm";
-
-        OkHttpUtils.builder()
-                .url(url)
-                .addHeader("token", token)
-                .addParam("sceneId", sceneId)
-                .addParam("isConfirm", String.valueOf(isConfirm))
-                .post(true)
-                .async(new OkHttpUtils.ICallBack() {
-                    @Override
-                    public void onSuccessful(Call call, String data) {
-                        runOnUiThread(() -> {
-                            if (isConfirm) {
-                                Toast.makeText(ScanActivity.this, "已确认登录", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(ScanActivity.this, "已取消登录", Toast.LENGTH_SHORT).show();
-                            }
-                            finish();
-                        });
-                    }
-
-                    @Override
-                    public void onFailure(Call call, String errorMsg) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ScanActivity.this, "操作失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                            finish();
-                        });
-                    }
-                });
     }
 
     @Override
